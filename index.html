@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Monitor Lumen</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='6' fill='%2322c55e'/></svg>">
+<style>
+:root{
+  --bg:#f6f7f9;--card:#fff;--ink:#111418;--muted:#5d6672;--line:#e3e6ea;
+  --ok:#16a34a;--ok-bg:#e8f7ee;--bad:#dc2626;--bad-bg:#fdecec;--warn:#d97706;--warn-bg:#fef4e2;--none:#d5d9df;
+  --accent:#111418;--accent-ink:#fff;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0e1013;--card:#171a1f;--ink:#eef0f3;--muted:#98a1ad;--line:#272b32;
+  --ok:#22c55e;--ok-bg:#12261a;--bad:#f87171;--bad-bg:#2c1414;--warn:#fbbf24;--warn-bg:#2b2210;--none:#2f343c;
+  --accent:#eef0f3;--accent-ink:#0e1013;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:920px;margin:0 auto;padding:28px 16px 60px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:20px}
+h1{font-size:20px;margin:0;letter-spacing:-.01em}
+h1 small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);text-decoration:none;font-size:14px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.banner{border-radius:12px;padding:18px 20px;margin-bottom:18px;display:flex;align-items:center;gap:14px;font-weight:600;font-size:17px}
+.banner .dot{width:14px;height:14px}
+.banner small{display:block;font-weight:400;font-size:13px;opacity:.85}
+.banner.ok{background:var(--ok-bg);color:var(--ok)}
+.banner.bad{background:var(--bad-bg);color:var(--bad)}
+.banner.warn{background:var(--warn-bg);color:var(--warn)}
+.dot{width:10px;height:10px;border-radius:50%;flex:none;background:var(--none)}
+.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad);box-shadow:0 0 0 4px color-mix(in srgb,var(--bad) 25%,transparent);animation:pulse 1.4s infinite}
+.dot.slow{background:var(--warn)}
+@keyframes pulse{50%{box-shadow:0 0 0 7px transparent}}
+.list{display:grid;gap:10px}
+.site{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.site.bad{border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.row{display:flex;align-items:center;gap:12px;min-width:0}
+.name{font-weight:600;min-width:0}
+.name a{color:var(--muted);font-weight:400;font-size:13px;text-decoration:none;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.name a:hover{text-decoration:underline}
+.meta{margin-left:auto;text-align:right;font-size:13px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+.meta b{color:var(--ink);font-weight:600}
+.err{margin:8px 0 0 22px;font-size:13px;color:var(--bad)}
+.bars{display:flex;gap:2px;height:22px;margin:12px 0 4px;align-items:stretch}
+.bars i{flex:1;border-radius:2px;background:var(--none)}
+.bars i.ok{background:var(--ok);opacity:.75}.bars i.bad{background:var(--bad)}.bars i.mix{background:var(--warn)}
+.legend{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.empty,.note{color:var(--muted);font-size:14px}
+.note{margin-top:26px;border-top:1px solid var(--line);padding-top:16px}
+.note code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+@media (max-width:560px){.row{flex-wrap:wrap}.meta{margin-left:22px;text-align:left;width:100%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Monitor Lumen<small id="updated">Cargando…</small></h1>
+    <div class="actions">
+      <a class="btn primary" id="lnk-edit" target="_blank" rel="noopener">＋ Agregar / editar sitios</a>
+      <a class="btn" id="lnk-run" target="_blank" rel="noopener">↻ Revisar ahora</a>
+    </div>
+  </header>
+  <div id="banner"></div>
+  <div class="list" id="list"><p class="empty">Cargando estado…</p></div>
+  <p class="note">Se revisa cada 5 minutos, las 24 horas. Si un sitio no responde dos veces seguidas te llega un aviso al celular, y otro cuando vuelve. Mientras siga caído, se repite el aviso cada hora.
+  Para sumar un sitio, tocá <b>Agregar / editar sitios</b> y agregá una línea como <code>{ "name": "Cliente", "url": "https://cliente.com.ar/" }</code>.</p>
+</div>
+<script>
+// Toma usuario/repo de la URL de GitHub Pages (usuario.github.io/repo). Cambiar acá si se publica en otro lado.
+const FALLBACK = { owner: 'ChrisGonzalez230994', repo: 'monitor-lumen' };
+const host = location.hostname.endsWith('.github.io');
+const OWNER = host ? location.hostname.split('.')[0] : FALLBACK.owner;
+const REPO = host ? (location.pathname.split('/')[1] || FALLBACK.repo) : FALLBACK.repo;
+const RAW = `https://raw.githubusercontent.com/${OWNER}/${REPO}/data`;
+document.getElementById('lnk-edit').href = `https://github.com/${OWNER}/${REPO}/edit/main/sites.json`;
+document.getElementById('lnk-run').href = `https://github.com/${OWNER}/${REPO}/actions/workflows/monitor.yml`;
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const ago = (iso) => {
+  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
+  if (m < 1) return 'recién'; if (m < 60) return `hace ${m} min`;
+  const h = Math.floor(m / 60); if (h < 48) return `hace ${h} h ${m % 60} min`;
+  return `hace ${Math.floor(h / 24)} días`;
+};
+const pct = (arr) => arr.length ? (arr.reduce((a, x) => a + x[1], 0) / arr.length * 100) : null;
+const fmtPct = (p) => p === null ? '—' : (p === 100 ? '100' : p.toFixed(2)) + '%';
+
+function bars(h) {
+  // Últimas 24 h en 48 tramos de 30 minutos
+  const end = Date.now(), span = 30 * 60000, out = [];
+  for (let i = 47; i >= 0; i--) {
+    const from = end - (i + 1) * span, to = end - i * span;
+    const pts = h.filter((x) => x[0] > from && x[0] <= to);
+    const cls = !pts.length ? '' : pts.every((x) => x[1]) ? 'ok' : pts.every((x) => !x[1]) ? 'bad' : 'mix';
+    const t = new Date(to).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const caidas = pts.filter((x) => !x[1]).length;
+    out.push(`<i class="${cls}" title="${t} · ${pts.length ? (caidas ? caidas + ' chequeo(s) con falla' : 'todo bien') : 'sin datos'}"></i>`);
+  }
+  return out.join('');
+}
+
+async function load() {
+  try {
+    const bust = `?t=${Date.now()}`;
+    const [st, hi] = await Promise.all([
+      fetch(RAW + '/status.json' + bust, { cache: 'no-store' }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+      fetch(RAW + '/history.json' + bust, { cache: 'no-store' }).then((r) => r.ok ? r.json() : {}).catch(() => ({})),
+    ]);
+    render(st, hi);
+  } catch (e) {
+    $('updated').textContent = 'Todavía no hay datos';
+    $('list').innerHTML = '<p class="empty">El monitor todavía no corrió por primera vez (o no se pudo leer el estado). Probá de nuevo en unos minutos.</p>';
+  }
+}
+
+function render(st, hi) {
+  const list = Object.values(st.sites || {});
+  const down = list.filter((s) => !s.up);
+  const staleMin = (Date.now() - Date.parse(st.updatedAt)) / 60000;
+  $('updated').textContent = `Última revisión ${ago(st.updatedAt)} · ${list.length} sitio${list.length === 1 ? '' : 's'}`;
+
+  let b;
+  if (staleMin > 30) b = `<div class="banner warn"><span class="dot slow"></span><div>El monitor no corre hace ${Math.round(staleMin)} minutos<small>Revisá la pestaña Actions del repositorio (a veces GitHub demora o pausa los chequeos).</small></div></div>`;
+  else if (down.length) b = `<div class="banner bad"><span class="dot bad"></span><div>${down.length} sitio${down.length > 1 ? 's' : ''} con problemas<small>${down.map((s) => esc(s.name)).join(' · ')}</small></div></div>`;
+  else b = `<div class="banner ok"><span class="dot ok"></span><div>Todos los sitios funcionan bien<small>Sin caídas en este momento.</small></div></div>`;
+  $('banner').innerHTML = b;
+
+  list.sort((a, b) => (a.up - b.up) || a.name.localeCompare(b.name));
+  $('list').innerHTML = list.length ? list.map((s) => {
+    const h = hi[s.url] || [];
+    const day = h.filter((x) => x[0] > Date.now() - 864e5);
+    const cls = !s.up ? 'bad' : s.slow ? 'slow' : 'ok';
+    return `<div class="site ${s.up ? '' : 'bad'}">
+      <div class="row">
+        <span class="dot ${cls}"></span>
+        <div class="name">${esc(s.name)}<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></div>
+        <div class="meta"><b>${s.up ? (s.slow ? 'Lenta' : 'Funciona') : 'Caída'}</b> ${s.up ? '· ' + s.ms + ' ms' : ''}<br>${s.up ? 'Arriba' : 'Caída'} ${ago(s.since)}</div>
+      </div>
+      ${s.up ? '' : `<div class="err">${esc(s.error)}</div>`}
+      <div class="bars">${bars(h)}</div>
+      <div class="legend"><span>24 h atrás</span><span>Disponibilidad 24 h: <b>${fmtPct(pct(day))}</b> · 7 días: <b>${fmtPct(pct(h))}</b></span><span>ahora</span></div>
+    </div>`;
+  }).join('') : '<p class="empty">No hay sitios cargados. Tocá “Agregar / editar sitios”.</p>';
+}
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

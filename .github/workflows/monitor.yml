@@ -1,0 +1,62 @@
+name: Monitor de sitios
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+    inputs:
+      test_alert:
+        description: 'Mandar un mensaje de prueba al celular'
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: ['sites.json', 'monitor.mjs']
+
+concurrency:
+  group: monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+      WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Mensaje de prueba
+        if: ${{ inputs.test_alert }}
+        run: node monitor.mjs --test
+
+      - name: Traer el estado anterior (rama data)
+        run: |
+          git fetch origin data --depth=1 || true
+          mkdir -p data
+          git show origin/data:status.json  > data/status.json  2>/dev/null || rm -f data/status.json
+          git show origin/data:history.json > data/history.json 2>/dev/null || rm -f data/history.json
+
+      - name: Revisar sitios
+        run: node monitor.mjs
+
+      - name: Guardar el estado (rama data, un solo commit)
+        run: |
+          cd data
+          git init -q -b data
+          git config user.name  "monitor-lumen"
+          git config user.email "monitor-lumen@users.noreply.github.com"
+          git add status.json history.json
+          git commit -q -m "estado $(date -u +%FT%TZ)"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" data

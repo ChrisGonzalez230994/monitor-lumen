@@ -1,0 +1,13 @@
+{
+  "sites": [
+    { "name": "Lumen Dev Estudio", "url": "https://www.lumendevestudio.com/" }
+  ],
+  "settings": {
+    "timeoutMs": 15000,
+    "retryDelayMs": 20000,
+    "realertMinutes": 60,
+    "slowMs": 8000,
+    "dailySummaryHour": 9,
+    "timezone": "America/Argentina/Buenos_Aires"
+  }
+}
