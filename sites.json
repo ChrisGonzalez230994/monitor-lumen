@@ -1,6 +1,13 @@
 {
   "sites": [
-    { "name": "Lumen Dev Estudio", "url": "https://www.lumendevestudio.com/" }
+    { "name": "Lumen Studio (principal)", "url": "https://www.lumendevestudio.com/", "keyword": "Lumen" },
+    { "name": "Candela Chandía", "url": "https://www.candelachandia.com.ar/", "keyword": "Candela Chand" },
+    { "name": "RV Departamento", "url": "https://rvdepartamento.vercel.app/", "keyword": "Stella Maris" },
+    { "name": "JZ Motomecánica", "url": "https://jzmotomecanica.vercel.app/", "keyword": "JZ Motomec" },
+    { "name": "Litz Evolution Studio", "url": "https://litzstudioevolution.vercel.app/", "keyword": "Litz Evolution" },
+    { "name": "Encuadernación Stele", "url": "https://encuadernacionstele-5ewz.vercel.app/", "keyword": "Stele" },
+    { "name": "ICB Mar del Plata", "url": "https://icbmardelplata.vercel.app/", "keyword": "ICB Mar del Plata" },
+    { "name": "Portfolio Gaspar", "url": "https://gasparporfoliodigital.vercel.app/", "keyword": "DimeloGasp" }
   ],
   "settings": {
     "timeoutMs": 15000,
