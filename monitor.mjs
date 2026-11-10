@@ -175,5 +175,33 @@ if (S.dailySummaryHour !== null && Number(parts.hour) >= S.dailySummaryHour && l
   lastSummaryDate = today;
 }
 
-await writeFile(STATUS_FILE, JSON.stringify({ updatedAt: now, lastSummaryDate, sites: newSites }, null, 2));
+// Una vez por día: ver si CallMeBot volvió a aceptar registros de WhatsApp (hasta avisar una vez)
+let callmebot = status.callmebot || { checkedDate: null, notified: false };
+if (!callmebot.notified && !process.env.WHATSAPP_APIKEY && callmebot.checkedDate !== today) {
+  try {
+    const r = await fetch('https://www.callmebot.com/blog/free-api-whatsapp-messages/', {
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; MonitorLumen/1.0)' },
+      signal: AbortSignal.timeout(15000),
+    });
+    const html = (await r.text()).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ');
+    const realPage = r.ok && /I allow callmebot to send me messages/i.test(html);
+    if (realPage && !/currently full/i.test(html)) {
+      const num = html.match(/\+34[\s\d]{9,14}\d/)?.[0]?.replace(/\s+/g, ' ').trim();
+      await notify(
+        `📲 *CallMeBot volvió a aceptar registros de WhatsApp*${num ? `\nNúmero del bot: ${num}` : ''}\n` +
+        'Agendalo y mandale por WhatsApp: I allow callmebot to send me messages\n' +
+        'Después pasale la API key que te responde a Claude para activar los avisos por WhatsApp.\n' +
+        'https://www.callmebot.com/blog/free-api-whatsapp-messages/', false);
+      callmebot.notified = true;
+      console.log('CallMeBot: hay cupo, aviso enviado');
+    } else {
+      console.log(`CallMeBot: ${realPage ? 'sigue lleno' : 'no se pudo leer la página (HTTP ' + r.status + ')'}`);
+    }
+    if (realPage) callmebot.checkedDate = today;
+  } catch (e) {
+    console.log(`CallMeBot: no se pudo revisar (${e.message})`);
+  }
+}
+
+await writeFile(STATUS_FILE, JSON.stringify({ updatedAt: now, lastSummaryDate, callmebot, sites: newSites }, null, 2));
 await writeFile(HISTORY_FILE, JSON.stringify(history));
