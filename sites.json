@@ -7,7 +7,8 @@
     { "name": "Litz Evolution Studio", "url": "https://litzstudioevolution.vercel.app/", "keyword": "Litz Evolution" },
     { "name": "Encuadernación Stele", "url": "https://encuadernacionstele-5ewz.vercel.app/", "keyword": "Stele" },
     { "name": "ICB Mar del Plata", "url": "https://icbmardelplata.vercel.app/", "keyword": "ICB Mar del Plata" },
-    { "name": "Portfolio Gaspar", "url": "https://gasparporfoliodigital.vercel.app/", "keyword": "DimeloGasp" }
+    { "name": "Portfolio Gaspar", "url": "https://gasparporfoliodigital.vercel.app/", "keyword": "DimeloGasp" },
+    { "name": "Portfolio Christian", "url": "https://portfolio-christian-teal.vercel.app/", "keyword": "Christian Gonz" }
   ],
   "settings": {
     "timeoutMs": 15000,
