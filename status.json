@@ -1,0 +1,130 @@
+{
+  "updatedAt": "2026-11-14T12:10:55.836Z",
+  "lastSummaryDate": "2026-11-14",
+  "callmebot": {
+    "checkedDate": "2026-11-12",
+    "notified": true
+  },
+  "sites": {
+    "https://www.lumendevestudio.com/": {
+      "name": "Lumen Studio (principal)",
+      "url": "https://www.lumendevestudio.com/",
+      "up": true,
+      "code": 200,
+      "ms": 310,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T19:49:07.403Z",
+      "lastAlert": null
+    },
+    "https://www.candelachandia.com.ar/": {
+      "name": "Candela Chandía",
+      "url": "https://www.candelachandia.com.ar/",
+      "up": true,
+      "code": 200,
+      "ms": 115,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T20:02:16.505Z",
+      "lastAlert": null
+    },
+    "https://rvdepartamento.vercel.app/": {
+      "name": "RV Departamento",
+      "url": "https://rvdepartamento.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 1027,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T20:02:16.505Z",
+      "lastAlert": null
+    },
+    "https://jzmotomecanica.vercel.app/": {
+      "name": "JZ Motomecánica",
+      "url": "https://jzmotomecanica.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 796,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T20:02:16.505Z",
+      "lastAlert": null
+    },
+    "https://litzstudioevolution.vercel.app/": {
+      "name": "Litz Evolution Studio",
+      "url": "https://litzstudioevolution.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 227,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T20:02:16.505Z",
+      "lastAlert": null
+    },
+    "https://encuadernacionstele-5ewz.vercel.app/": {
+      "name": "Encuadernación Stele",
+      "url": "https://encuadernacionstele-5ewz.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 181,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T20:02:16.505Z",
+      "lastAlert": null
+    },
+    "https://icbmardelplata.vercel.app/": {
+      "name": "ICB Mar del Plata",
+      "url": "https://icbmardelplata.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 106,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T20:02:16.505Z",
+      "lastAlert": null
+    },
+    "https://gasparporfoliodigital.vercel.app/": {
+      "name": "Portfolio Gaspar",
+      "url": "https://gasparporfoliodigital.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 108,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-10T20:02:16.505Z",
+      "lastAlert": null
+    },
+    "https://portfolio-christian-gonzalez.vercel.app/": {
+      "name": "Portfolio Christian",
+      "url": "https://portfolio-christian-gonzalez.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 105,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-13T23:28:31.346Z",
+      "lastAlert": null
+    },
+    "https://botbolclothes.vercel.app/": {
+      "name": "Botbol Clothes",
+      "url": "https://botbolclothes.vercel.app/",
+      "up": true,
+      "code": 200,
+      "ms": 216,
+      "error": null,
+      "slow": false,
+      "lastCheck": "2026-11-14T12:10:55.836Z",
+      "since": "2026-11-13T23:33:53.904Z",
+      "lastAlert": null
+    }
+  }
+}
