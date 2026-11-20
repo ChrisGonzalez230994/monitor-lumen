@@ -175,9 +175,12 @@ if (S.dailySummaryHour !== null && Number(parts.hour) >= S.dailySummaryHour && l
   lastSummaryDate = today;
 }
 
-// Una vez por día: ver si CallMeBot volvió a aceptar registros de WhatsApp (hasta avisar una vez)
-let callmebot = status.callmebot || { checkedDate: null, notified: false };
-if (!callmebot.notified && !process.env.WHATSAPP_APIKEY && callmebot.checkedDate !== today) {
+// Cada 15 min: ver si CallMeBot tiene cupo para WhatsApp. Avisa (urgente) cada vez que pasa de lleno a abierto.
+// Se apaga solo cuando ya están cargados los secrets de WhatsApp.
+const CMB_EVERY_MIN = 15;
+let callmebot = status.callmebot || {};
+const cmbDue = !callmebot.lastCheck || (Date.now() - Date.parse(callmebot.lastCheck)) / 60000 >= CMB_EVERY_MIN - 1;
+if (!process.env.WHATSAPP_APIKEY && cmbDue) {
   try {
     const r = await fetch('https://www.callmebot.com/blog/free-api-whatsapp-messages/', {
       headers: { 'user-agent': 'Mozilla/5.0 (compatible; MonitorLumen/1.0)' },
@@ -185,19 +188,27 @@ if (!callmebot.notified && !process.env.WHATSAPP_APIKEY && callmebot.checkedDate
     });
     const html = (await r.text()).replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ');
     const realPage = r.ok && /I allow callmebot to send me messages/i.test(html);
-    if (realPage && !/currently full/i.test(html)) {
-      const num = html.match(/\+34[\s\d]{9,14}\d/)?.[0]?.replace(/\s+/g, ' ').trim();
-      await notify(
-        `📲 *CallMeBot volvió a aceptar registros de WhatsApp*${num ? `\nNúmero del bot: ${num}` : ''}\n` +
-        'Agendalo y mandale por WhatsApp: I allow callmebot to send me messages\n' +
-        'Después pasale la API key que te responde a Claude para activar los avisos por WhatsApp.\n' +
-        'https://www.callmebot.com/blog/free-api-whatsapp-messages/', false);
-      callmebot.notified = true;
-      console.log('CallMeBot: hay cupo, aviso enviado');
+    // El número del bot completo (no el de ejemplo +34 123 123 123)
+    const num = (html.match(/\+34[\s\d]{9,14}\d/g) || [])
+      .map((n) => n.replace(/\s+/g, ' ').trim())
+      .find((n) => n.replace(/\D/g, '') !== '34123123123');
+    const open = realPage && !/currently full/i.test(html) && !!num;
+    if (realPage) {
+      if (open && !callmebot.open) {
+        await notify(
+          `📲 *CallMeBot tiene cupo para WhatsApp AHORA*\nNúmero del bot: ${num}\n` +
+          'Agendalo y mandale YA por WhatsApp: I allow callmebot to send me messages\n' +
+          'Los cupos duran poco. Si te responde con la API key, avisale a Claude.', true);
+        console.log('CallMeBot: hay cupo, aviso enviado');
+      } else if (!open && callmebot.open) {
+        console.log('CallMeBot: se volvió a llenar');
+      } else {
+        console.log(`CallMeBot: ${open ? 'sigue con cupo' : 'sigue lleno'}`);
+      }
+      callmebot = { ...callmebot, open, lastCheck: now, ...(open ? { lastOpen: now, number: num } : {}) };
     } else {
-      console.log(`CallMeBot: ${realPage ? 'sigue lleno' : 'no se pudo leer la página (HTTP ' + r.status + ')'}`);
+      console.log(`CallMeBot: no se pudo leer la página (HTTP ${r.status})`);
     }
-    if (realPage) callmebot.checkedDate = today;
   } catch (e) {
     console.log(`CallMeBot: no se pudo revisar (${e.message})`);
   }
