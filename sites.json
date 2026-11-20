@@ -9,7 +9,8 @@
     { "name": "ICB Mar del Plata", "url": "https://icbmardelplata.vercel.app/", "keyword": "ICB Mar del Plata" },
     { "name": "Portfolio Gaspar", "url": "https://gasparporfoliodigital.vercel.app/", "keyword": "DimeloGasp" },
     { "name": "Portfolio Christian", "url": "https://portfolio-christian-gonzalez.vercel.app/", "keyword": "Christian Gonz" },
-    { "name": "Botbol Clothes", "url": "https://botbolclothes.vercel.app/", "keyword": "Botbol Clothes" }
+    { "name": "Botbol Clothes", "url": "https://botbolclothes.vercel.app/", "keyword": "Botbol Clothes" },
+    { "name": "Portfolio Ayelén González", "url": "https://ayelengonzalez.com.ar/", "keyword": "Ayel" }
   ],
   "settings": {
     "timeoutMs": 15000,
