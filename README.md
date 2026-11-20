@@ -14,6 +14,8 @@ Se revisa dos veces seguidas (con 20 s de diferencia) para evitar falsas alarmas
 - responde con error (404, 500, etc.),
 - carga pero no aparece el texto de `keyword` (opcional; sirve para detectar páginas en blanco o "Deployment not found").
 
+Cada aviso trae **qué pasa** (en criollo), una **posible solución** y el **detalle técnico** (código HTTP, error de DNS o de certificado, `x-vercel-error`). El panel muestra lo mismo, guarda un **historial de caídas** con su motivo y tiene un botón **Copiar para Claude** que arma el texto para pegarle a Claude y corregirlo.
+
 Avisos: uno cuando se cae, uno cada hora mientras siga caída, uno cuando vuelve, y un resumen diario a las 9 h para saber que el monitor sigue vivo.
 
 ## Agregar o quitar sitios

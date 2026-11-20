@@ -79,6 +79,71 @@ if (process.argv.includes('--test')) {
 }
 
 // ---------- Chequeo ----------
+// Traduce un error de red a: qué pasa (en criollo), posible solución y código técnico
+const isVercel = (url) => /\.vercel\.app$/i.test(new URL(url).hostname);
+function diagnoseNetwork(e, url) {
+  const code = e.cause?.code || e.code || '';
+  const msg = String(e.cause?.message || e.message || '');
+  const host = new URL(url).hostname;
+  const dominio = isVercel(url)
+    ? 'El proyecto de Vercel pudo haber sido borrado o renombrado: revisá en Vercel que exista y que tenga ese dominio.'
+    : `Revisá en NIC.ar que el dominio ${host} no esté vencido y que siga delegado a ns1/ns2.vercel-dns.com; después revisá el dominio en Vercel.`;
+  if (e.name === 'TimeoutError' || /timeout/i.test(code)) return {
+    cause: `No respondió en ${S.timeoutMs / 1000} segundos`,
+    fix: 'El servidor está caído o muy lento. Si es Vercel, revisá vercel-status.com y el último deploy; si la página es muy pesada, optimizar imágenes y videos.',
+    tech: code || 'Timeout',
+  };
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') return {
+    cause: 'El dominio no existe o no apunta a ningún servidor (falla de DNS)',
+    fix: dominio, tech: `${code} (DNS) para ${host}`,
+  };
+  if (/CERT|SSL|TLS|SELF_SIGNED|ALTNAME|UNABLE_TO_VERIFY/i.test(code + msg)) return {
+    cause: /EXPIRED/i.test(code + msg) ? 'El certificado de seguridad (HTTPS) está vencido'
+      : 'El certificado de seguridad (HTTPS) es inválido o no corresponde a este dominio',
+    fix: 'En Vercel → proyecto → Settings → Domains, revisá que el dominio figure como "Valid Configuration"; si no, verificá los DNS y volvé a agregar el dominio para que regenere el certificado.',
+    tech: code || msg,
+  };
+  if (/redirect count|redirect/i.test(msg)) return {
+    cause: 'La página entra en un bucle de redirecciones (redirige a sí misma sin parar)',
+    fix: 'Revisar las redirecciones de dominio en Vercel (con y sin www) y los redirects de vercel.json.',
+    tech: msg,
+  };
+  if (code === 'ECONNREFUSED' || code === 'ECONNRESET' || code === 'EHOSTUNREACH') return {
+    cause: 'El servidor rechazó o cortó la conexión',
+    fix: 'El dominio apunta a un servidor que no atiende. Revisá los DNS del dominio (tienen que apuntar a Vercel) y el estado del proyecto.',
+    tech: code,
+  };
+  return { cause: 'Error de conexión', fix: 'Revisar el dominio y el último deploy en Vercel.', tech: code || msg };
+}
+
+// Explica un error HTTP; usa el encabezado x-vercel-error cuando viene
+function diagnoseHttp(res, url) {
+  const st = res.status;
+  const ve = res.headers.get('x-vercel-error') || '';
+  const V = {
+    DEPLOYMENT_NOT_FOUND: ['El deploy de Vercel no existe (fue borrado o el dominio quedó apuntando a uno viejo)', 'Volver a publicar el proyecto (vercel deploy --prod o un push a main) y revisar que el dominio esté asignado al deploy de producción.'],
+    NOT_FOUND: ['Vercel no encuentra la página (404)', 'Revisar que el archivo exista en el deploy (index.html en la raíz correcta) y la carpeta raíz configurada en Vercel.'],
+    DEPLOYMENT_DISABLED: ['El deploy está deshabilitado en Vercel', 'Revisar en Vercel si el proyecto fue pausado o si hay un problema con la cuenta o el plan.'],
+    DEPLOYMENT_PAUSED: ['El proyecto está pausado en Vercel', 'Reanudar el proyecto desde el panel de Vercel.'],
+    DEPLOYMENT_BLOCKED: ['Vercel bloqueó el deploy', 'Revisar avisos en el panel de Vercel (cuenta, plan o contenido).'],
+    DNS_HOSTNAME_NOT_FOUND: ['El dominio no está configurado en Vercel', 'Agregar el dominio en Vercel → Settings → Domains.'],
+    FUNCTION_INVOCATION_FAILED: ['Falla el código del servidor (función de Vercel)', 'Revisar los logs de la función en Vercel.'],
+    FUNCTION_INVOCATION_TIMEOUT: ['La función del servidor tarda demasiado', 'Revisar los logs de la función en Vercel.'],
+  }[ve];
+  if (V) return { cause: V[0], fix: V[1], tech: `HTTP ${st} · x-vercel-error: ${ve}` };
+  const tech = `HTTP ${st}${ve ? ` · x-vercel-error: ${ve}` : ''}`;
+  if (st === 401 || st === 403) return {
+    cause: `La página pide permiso o está bloqueada (error ${st})`,
+    fix: isVercel(url) ? 'Seguramente quedó activada la "Deployment Protection" de Vercel: desactivala en Settings → Deployment Protection para producción.' : 'Revisar si hay protección por contraseña o un firewall bloqueando visitas.',
+    tech,
+  };
+  if (st === 404) return { cause: 'La página no existe (error 404)', fix: 'Revisar que el link sea correcto y que el último deploy tenga el index.html en la raíz.', tech };
+  if (st === 402) return { cause: 'Problema de pago o de plan en el hosting (error 402)', fix: 'Revisar la facturación y los límites del plan en Vercel.', tech };
+  if (st === 429) return { cause: 'El servidor está limitando las visitas (error 429)', fix: 'Puede ser un límite de uso o protección anti-bots; revisar el firewall y el uso en Vercel.', tech };
+  if (st >= 500) return { cause: `Error interno del servidor (error ${st})`, fix: 'Suele ser una falla de Vercel o del código del servidor. Revisar vercel-status.com y los logs del último deploy.', tech };
+  return { cause: `Responde con error ${st}`, fix: 'Revisar el último deploy en Vercel.', tech };
+}
+
 async function checkOnce(site) {
   const t0 = Date.now();
   try {
@@ -89,16 +154,33 @@ async function checkOnce(site) {
     });
     const body = await res.text();
     const ms = Date.now() - t0;
-    if (!res.ok) return { up: false, code: res.status, ms, error: `Responde con error ${res.status}` };
-    if (site.keyword && !body.toLowerCase().includes(String(site.keyword).toLowerCase())) {
-      return { up: false, code: res.status, ms, error: `Carga, pero no aparece el texto "${site.keyword}"` };
+    const title = (body.match(/<title[^>]*>([^<]*)/i)?.[1] || '').trim().slice(0, 120);
+    const info = {
+      finalUrl: res.url !== site.url ? res.url : undefined,
+      server: res.headers.get('server') || undefined,
+      vercelId: res.headers.get('x-vercel-id') || undefined,
+      title: title || undefined,
+      bytes: body.length,
+    };
+    if (!res.ok) {
+      const d = diagnoseHttp(res, site.url);
+      return { up: false, code: res.status, ms, error: d.cause, diag: { ...d, ...info } };
     }
-    return { up: true, code: res.status, ms, error: null };
+    if (site.keyword && !body.toLowerCase().includes(String(site.keyword).toLowerCase())) {
+      const blank = body.replace(/<[^>]+>/g, '').trim().length < 200;
+      const d = {
+        cause: blank ? 'La página carga pero está vacía o en blanco'
+          : `La página carga, pero no aparece el texto de control "${site.keyword}" (puede ser otra página o contenido roto)`,
+        fix: 'Revisar el último deploy: puede haberse publicado una versión rota, otro proyecto en este dominio o una página de error del hosting.',
+        tech: `HTTP ${res.status} · falta "${site.keyword}"`,
+      };
+      return { up: false, code: res.status, ms, error: d.cause, diag: { ...d, ...info } };
+    }
+    return { up: true, code: res.status, ms, error: null, diag: null };
   } catch (e) {
     const ms = Date.now() - t0;
-    const msg = e.name === 'TimeoutError' ? `No respondió en ${S.timeoutMs / 1000} s`
-      : (e.cause?.code ? `Error de conexión (${e.cause.code})` : `Error: ${e.message}`);
-    return { up: false, code: null, ms, error: msg };
+    const d = diagnoseNetwork(e, site.url);
+    return { up: false, code: null, ms, error: d.cause, diag: d };
   }
 }
 
@@ -117,6 +199,9 @@ const history = await readJson(HISTORY_FILE, {});
 const results = await Promise.all(sites.map(async (s) => [s, await check(s)]));
 const now = nowIso();
 const newSites = {};
+const INCIDENTS_MAX = 50; // historial de caídas con su motivo
+const incidents = Array.isArray(status.incidents) ? status.incidents : [];
+const openIncident = (url) => incidents.find((i) => i.url === url && !i.end);
 
 for (const [site, r] of results) {
   const prev = status.sites?.[site.url];
@@ -128,6 +213,7 @@ for (const [site, r] of results) {
     code: r.code,
     ms: r.ms,
     error: r.error,
+    diag: r.diag || null,
     slow: r.up && r.ms > S.slowMs,
     lastCheck: now,
     since: prev && prev.up === r.up ? prev.since : now,
@@ -136,15 +222,31 @@ for (const [site, r] of results) {
 
   if (!r.up) {
     const wasUp = !prev || prev.up;
+    const d = r.diag || { cause: r.error };
+    // Registrar (o actualizar) la caída en el historial
+    let inc = openIncident(site.url);
+    if (!inc) {
+      inc = { name: label, url: site.url, start: now, end: null };
+      incidents.push(inc);
+    }
+    Object.assign(inc, { name: label, cause: d.cause, fix: d.fix, tech: d.tech, lastSeen: now });
+
     const minsSinceAlert = entry.lastAlert ? (Date.now() - Date.parse(entry.lastAlert)) / 60000 : Infinity;
     if (wasUp || minsSinceAlert >= S.realertMinutes) {
       const caidaHace = wasUp ? '' : `\nSigue caída desde ${localTime(new Date(entry.since))}.`;
-      await notify(`🔴 *SITIO CAÍDO*: ${label}\n${site.url}\nMotivo: ${r.error}${caidaHace}\n(${localTime()})`, true);
+      await notify(
+        `🔴 *SITIO CAÍDO*: ${label}\n${site.url}\n` +
+        `Qué pasa: ${d.cause}\n` +
+        (d.fix ? `Posible solución: ${d.fix}\n` : '') +
+        (d.tech ? `Detalle técnico: ${d.tech}\n` : '') +
+        `${caidaHace ? caidaHace.trim() + '\n' : ''}(${localTime()})`, true);
       entry.lastAlert = now;
     }
   } else if (prev && !prev.up) {
     const mins = Math.round((Date.now() - Date.parse(prev.since)) / 60000);
-    await notify(`🟢 *VOLVIÓ*: ${label} funciona de nuevo.\nEstuvo caída unos ${mins} min.\n(${localTime()})`, false);
+    const inc = openIncident(site.url);
+    if (inc) { inc.end = now; inc.minutes = mins; }
+    await notify(`🟢 *VOLVIÓ*: ${label} funciona de nuevo.\nEstuvo caída unos ${mins} min${inc?.cause ? ` (${inc.cause})` : ''}.\n(${localTime()})`, false);
     entry.lastAlert = null;
   }
 
@@ -157,6 +259,8 @@ for (const [site, r] of results) {
 
 // Quitar del historial los sitios que ya no están en la lista
 for (const url of Object.keys(history)) if (!newSites[url]) delete history[url];
+// Cerrar caídas abiertas de sitios que se sacaron de la lista
+for (const i of incidents) if (!i.end && !newSites[i.url]) i.end = now;
 
 // Resumen diario para saber que el monitor sigue vivo
 const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {
@@ -214,5 +318,5 @@ if (!process.env.WHATSAPP_APIKEY && cmbDue) {
   }
 }
 
-await writeFile(STATUS_FILE, JSON.stringify({ updatedAt: now, lastSummaryDate, callmebot, sites: newSites }, null, 2));
+await writeFile(STATUS_FILE, JSON.stringify({ updatedAt: now, lastSummaryDate, callmebot, sites: newSites, incidents: incidents.slice(-INCIDENTS_MAX) }, null, 2));
 await writeFile(HISTORY_FILE, JSON.stringify(history));

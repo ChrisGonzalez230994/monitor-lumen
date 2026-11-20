@@ -46,7 +46,21 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-
 .name a:hover{text-decoration:underline}
 .meta{margin-left:auto;text-align:right;font-size:13px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
 .meta b{color:var(--ink);font-weight:600}
-.err{margin:8px 0 0 22px;font-size:13px;color:var(--bad)}
+.diag{margin:10px 0 0 22px;font-size:13px;display:grid;gap:4px}
+.diag .cause{color:var(--bad);font-weight:600;font-size:14px}
+.diag .fix{color:var(--ink)}
+.diag .fix b,.diag .tech b{color:var(--muted);font-weight:600}
+.diag .tech{color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:12px;word-break:break-word}
+.copy{margin-top:6px;justify-self:start;font-size:13px;padding:6px 10px}
+.copy.done{border-color:var(--ok);color:var(--ok)}
+h2{font-size:15px;margin:30px 0 10px}
+.inc{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;display:grid;gap:3px}
+.inc + .inc{margin-top:8px}
+.inc .top{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline}
+.inc .top b{font-size:14px}
+.inc .when{color:var(--muted)}
+.inc .open{color:var(--bad);font-weight:600}
+.inc .copy{margin-top:4px}
 .bars{display:flex;gap:2px;height:22px;margin:12px 0 4px;align-items:stretch}
 .bars i{flex:1;border-radius:2px;background:var(--none)}
 .bars i.ok{background:var(--ok);opacity:.75}.bars i.bad{background:var(--bad)}.bars i.mix{background:var(--warn)}
@@ -68,6 +82,8 @@ h1 small{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-
   </header>
   <div id="banner"></div>
   <div class="list" id="list"><p class="empty">Cargando estado…</p></div>
+  <h2>Historial de caídas</h2>
+  <div id="incidents"><p class="empty">Sin caídas registradas.</p></div>
   <p class="note">Se revisa cada 5 minutos, las 24 horas. Si un sitio no responde dos veces seguidas te llega un aviso al celular, y otro cuando vuelve. Mientras siga caído, se repite el aviso cada hora.
   Para sumar un sitio, tocá <b>Agregar / editar sitios</b> y agregá una línea como <code>{ "name": "Cliente", "url": "https://cliente.com.ar/" }</code>.</p>
 </div>
@@ -121,6 +137,7 @@ async function load() {
 }
 
 function render(st, hi) {
+  copyTexts.length = 0;
   const list = Object.values(st.sites || {});
   const down = list.filter((s) => !s.up);
   const staleMin = (Date.now() - Date.parse(st.updatedAt)) / 60000;
@@ -143,12 +160,63 @@ function render(st, hi) {
         <div class="name">${esc(s.name)}<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></div>
         <div class="meta"><b>${s.up ? (s.slow ? 'Lenta' : 'Funciona') : 'Caída'}</b> ${s.up ? '· ' + s.ms + ' ms' : ''}<br>${s.up ? 'Arriba' : 'Caída'} ${ago(s.since)}</div>
       </div>
-      ${s.up ? '' : `<div class="err">${esc(s.error)}</div>`}
+      ${s.up ? '' : diagHtml(s)}
       <div class="bars">${bars(h)}</div>
       <div class="legend"><span>24 h atrás</span><span>Disponibilidad 24 h: <b>${fmtPct(pct(day))}</b> · 7 días: <b>${fmtPct(pct(h))}</b></span><span>ahora</span></div>
     </div>`;
   }).join('') : '<p class="empty">No hay sitios cargados. Tocá “Agregar / editar sitios”.</p>';
+
+  const inc = (st.incidents || []).slice().reverse();
+  $('incidents').innerHTML = inc.length ? inc.map((i) => {
+    const dur = i.end ? `${i.minutes ?? Math.round((Date.parse(i.end) - Date.parse(i.start)) / 60000)} min` : '';
+    return `<div class="inc">
+      <div class="top"><b>${esc(i.name)}</b><span class="when">${fmtDate(i.start)}${i.end ? ` · duró ${dur}` : ''}</span>${i.end ? '' : '<span class="open">● sigue caída</span>'}</div>
+      <div>${esc(i.cause || '')}</div>
+      ${copyBtn(claudeText({ name: i.name, url: i.url, since: i.start, end: i.end, diag: i }))}
+    </div>`;
+  }).join('') : '<p class="empty">Sin caídas registradas. Cuando una web se caiga, acá queda el motivo para corregirlo después.</p>';
 }
+
+// ---------- Diagnóstico y "Copiar para Claude" ----------
+const fmtDate = (iso) => new Date(iso).toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
+const copyTexts = [];
+function copyBtn(text) {
+  copyTexts.push(text);
+  return `<button class="btn copy" data-copy="${copyTexts.length - 1}">📋 Copiar para Claude</button>`;
+}
+function claudeText(s) {
+  const d = s.diag || {};
+  const L = [
+    `La web "${s.name}" (${s.url}) ${s.end ? `estuvo caída desde el ${fmtDate(s.since)} hasta el ${fmtDate(s.end)}` : `está caída desde el ${fmtDate(s.since)}`}, según el Monitor Lumen.`,
+    `Qué pasa: ${d.cause || s.error || 'sin dato'}`,
+  ];
+  if (d.fix) L.push(`Posible solución (sugerida por el monitor): ${d.fix}`);
+  if (d.tech) L.push(`Detalle técnico: ${d.tech}`);
+  if (d.finalUrl) L.push(`Termina en la URL: ${d.finalUrl}`);
+  if (d.title) L.push(`Título que muestra la página: ${d.title}`);
+  if (d.server) L.push(`Servidor: ${d.server}`);
+  if (d.vercelId) L.push(`x-vercel-id: ${d.vercelId}`);
+  L.push(s.end ? 'Ayudame a entender qué pasó y cómo evitar que vuelva a pasar.' : 'Ayudame a encontrar la causa y corregirla.');
+  return L.join('\n');
+}
+function diagHtml(s) {
+  const d = s.diag || {};
+  return `<div class="diag">
+    <div class="cause">${esc(d.cause || s.error)}</div>
+    ${d.fix ? `<div class="fix"><b>Posible solución:</b> ${esc(d.fix)}</div>` : ''}
+    ${d.tech ? `<div class="tech"><b>Detalle:</b> ${esc(d.tech)}${d.title ? ` · título: "${esc(d.title)}"` : ''}</div>` : ''}
+    ${copyBtn(claudeText(s))}
+  </div>`;
+}
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-copy]');
+  if (!b) return;
+  const text = copyTexts[+b.dataset.copy];
+  try { await navigator.clipboard.writeText(text); }
+  catch { const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  b.textContent = '✓ Copiado: pegalo en Claude'; b.classList.add('done');
+  setTimeout(() => { b.textContent = '📋 Copiar para Claude'; b.classList.remove('done'); }, 2500);
+});
 
 load();
 setInterval(load, 60000);
