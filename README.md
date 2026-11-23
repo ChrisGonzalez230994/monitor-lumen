@@ -44,6 +44,13 @@ Se cargan en Settings → Secrets and variables → Actions, o con `gh secret se
 
 Probar: Actions → Monitor de sitios → Run workflow → tildar "Mandar un mensaje de prueba".
 
+## Bot de Telegram (consultas)
+
+@monitor_dev_lumen_bot responde: `/estado`, `/caidos`, `/web <nombre>`, `/caidas`, `/panel`, o directamente el nombre de una web.
+Código en `bot/` (Vercel, proyecto **monitor-lumen-bot**, se publica con `vercel deploy --prod` desde `bot/`). Lee los mismos datos de la rama `data`.
+Variables en Vercel: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (solo responde a ese chat), `TELEGRAM_WEBHOOK_SECRET`.
+Si cambia el token: actualizarlo en Vercel y en los secrets de GitHub, volver a publicar y abrir `/api/setup?key=<WEBHOOK_SECRET>&step=webhook`.
+
 ## Notas
 
 - GitHub puede demorar algunos minutos los chequeos programados en horas pico.
