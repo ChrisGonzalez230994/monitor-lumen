@@ -35,8 +35,13 @@ if (process.env.WHATSAPP_PHONE && process.env.WHATSAPP_APIKEY) {
     u.searchParams.set('phone', process.env.WHATSAPP_PHONE);
     u.searchParams.set('text', text);
     u.searchParams.set('apikey', process.env.WHATSAPP_APIKEY);
-    const r = await fetch(u, { signal: AbortSignal.timeout(20000) });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const r = await fetch(u, { signal: AbortSignal.timeout(30000) });
+    // CallMeBot responde 200 aunque rechace el mensaje: hay que leer el texto
+    const answer = (await r.text()).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!r.ok || !/queued|sent/i.test(answer) || /invalid|error|not (yet )?activ|blocked|paused/i.test(answer)) {
+      throw new Error(`HTTP ${r.status}: ${answer.slice(0, 200)}`);
+    }
+    console.log('CallMeBot: mensaje aceptado y en cola');
   }]);
 }
 if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
