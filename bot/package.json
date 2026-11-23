@@ -1,0 +1,6 @@
+{
+  "name": "monitor-lumen-bot",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "22.x" }
+}

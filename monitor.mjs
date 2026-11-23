@@ -49,7 +49,7 @@ if (process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
     const r = await fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text, disable_web_page_preview: true }),
+      body: JSON.stringify({ chat_id: process.env.TELEGRAM_CHAT_ID, text: text.replace(/\*/g, ''), disable_web_page_preview: true }),
       signal: AbortSignal.timeout(20000),
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
